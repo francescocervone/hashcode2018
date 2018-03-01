@@ -47,7 +47,7 @@ public class Main {
 			int currentStep = i;
 			for (Car car : cars) {
 				if (car.isAvailable()) {
-					PriorityQueue<Ride> priorityQueue = new PriorityQueue<>(new SmallestRideComparator(car));
+					PriorityQueue<Ride> priorityQueue = new PriorityQueue<>(new SmallestRideAndBonusComparator(currentStep, bonus, car));
 					for (Ride ride : rides) {
 						int time = i +
 								distance(car.currentPosition, ride.start) +
@@ -261,5 +261,30 @@ class SmallestRideComparator implements Comparator<Ride> {
 		int ride2StartTime = Main.distance(car.currentPosition, ride2.start);
 
 		return (ride1Length + ride1StartTime) - (ride2Length + ride2StartTime);
+	}
+}
+
+class SmallestRideAndBonusComparator implements Comparator<Ride> {
+	private final int currentStep;
+	private final int bonus;
+	private Car car;
+
+	public SmallestRideAndBonusComparator(int currentStep, int bonus, Car car) {
+		this.currentStep = currentStep;
+		this.bonus = bonus;
+		this.car = car;
+	}
+
+	@Override
+	public int compare(Ride ride1, Ride ride2) {
+		int ride1Length = Main.distance(ride1.start, ride1.end);
+		int ride2Length = Main.distance(ride2.start, ride2.end);
+
+		int ride1StartTime = Main.distance(car.currentPosition, ride1.start);
+		int bonus1 = (currentStep + ride1StartTime < ride1.earliestStart) ? bonus : 0;
+		int ride2StartTime = Main.distance(car.currentPosition, ride2.start);
+		int bonus2 = (currentStep + ride2StartTime < ride2.earliestStart) ? bonus : 0;
+
+		return (ride1Length + ride1StartTime - bonus1) - (ride2Length + ride2StartTime - bonus2);
 	}
 }
