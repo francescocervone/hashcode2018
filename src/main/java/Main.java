@@ -2,17 +2,21 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.*;
 
 public class Main {
 	public static void main(String[] args) throws IOException {
-		//Scanner scanner = new Scanner(new FileInputStream(new File("b_should_be_easy.in")));
-		//Scanner scanner = new Scanner(new FileInputStream(new File("c_no_hurry.in")));
-		Scanner scanner = new Scanner(new FileInputStream(new File("d_metropolis.in")));
-		//Scanner scanner = new Scanner(new FileInputStream(new File("e_high_bonus.in")));
+		run("a_example.in");
+		run("b_should_be_easy.in");
+		run("c_no_hurry.in");
+		run("d_metropolis.in");
+		run("e_high_bonus.in");
+	}
+
+	private static void run(String file) throws IOException {
+		Scanner scanner = new Scanner(new FileInputStream(new File(file)));
 		int rows = scanner.nextInt();
 		int columns = scanner.nextInt();
 		int nCars = scanner.nextInt();
@@ -43,17 +47,7 @@ public class Main {
 			int currentStep = i;
 			for (Car car : cars) {
 				if (car.isAvailable()) {
-					PriorityQueue<Ride> priorityQueue = new PriorityQueue<>((ride1, ride2) -> {
-						int ride1Length = distance(ride1.start, ride1.end);
-						int ride2Length = distance(ride2.start, ride2.end);
-
-						int ride1StartTime = distance(car.currentPosition, ride1.start);
-						int bonus1 = (currentStep + ride1StartTime < ride1.earliestStart) ? bonus : 0;
-						int ride2StartTime = distance(car.currentPosition, ride2.start);
-						int bonus2 = (currentStep + ride2StartTime < ride2.earliestStart) ? bonus : 0;
-
-						return (ride2Length + bonus2) - (ride1Length + bonus1);
-					});
+					PriorityQueue<Ride> priorityQueue = new PriorityQueue<>(new SmallestRideComparator(car));
 					for (Ride ride : rides) {
 						int time = i +
 								distance(car.currentPosition, ride.start) +
@@ -102,7 +96,7 @@ public class Main {
 			}
 		}
 
-		File output = new File("output.txt");
+		File output = new File(file + ".txt");
 		StringBuilder stringBuilder = new StringBuilder();
 		for (Car car : cars) {
 			stringBuilder
@@ -213,4 +207,59 @@ enum CarState {
 	AVAILABLE,
 	GOING_TO_START,
 	GOING_TO_FINISH
+}
+
+class LengthComparator implements Comparator<Ride> {
+
+	@Override
+	public int compare(Ride ride1, Ride ride2) {
+		int ride1Length = Main.distance(ride1.start, ride1.end);
+		int ride2Length = Main.distance(ride2.start, ride2.end);
+
+		return ride2Length - ride1Length;
+	}
+}
+
+class LengthAndBonusComparator implements Comparator<Ride> {
+	private final int currentStep;
+	private final int bonus;
+	private Car car;
+
+	public LengthAndBonusComparator(int currentStep, int bonus, Car car) {
+		this.currentStep = currentStep;
+		this.bonus = bonus;
+		this.car = car;
+	}
+
+	@Override
+	public int compare(Ride ride1, Ride ride2) {
+		int ride1Length = Main.distance(ride1.start, ride1.end);
+		int ride2Length = Main.distance(ride2.start, ride2.end);
+
+		int ride1StartTime = Main.distance(car.currentPosition, ride1.start);
+		int bonus1 = (currentStep + ride1StartTime < ride1.earliestStart) ? bonus : 0;
+		int ride2StartTime = Main.distance(car.currentPosition, ride2.start);
+		int bonus2 = (currentStep + ride2StartTime < ride2.earliestStart) ? bonus : 0;
+
+		return (ride2Length + bonus2) - (ride1Length + bonus1);
+	}
+}
+
+class SmallestRideComparator implements Comparator<Ride> {
+	private Car car;
+
+	public SmallestRideComparator(Car car) {
+		this.car = car;
+	}
+
+	@Override
+	public int compare(Ride ride1, Ride ride2) {
+		int ride1Length = Main.distance(ride1.start, ride1.end);
+		int ride2Length = Main.distance(ride2.start, ride2.end);
+
+		int ride1StartTime = Main.distance(car.currentPosition, ride1.start);
+		int ride2StartTime = Main.distance(car.currentPosition, ride2.start);
+
+		return (ride1Length + ride1StartTime) - (ride2Length + ride2StartTime);
+	}
 }
