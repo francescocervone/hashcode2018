@@ -1,10 +1,18 @@
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.*;
 
 public class Main {
-	public static void main(String[] args) {
-		Scanner scanner = new Scanner(System.in);
+	public static void main(String[] args) throws IOException {
+		//Scanner scanner = new Scanner(new FileInputStream(new File("b_should_be_easy.in")));
+		//Scanner scanner = new Scanner(new FileInputStream(new File("c_no_hurry.in")));
+		Scanner scanner = new Scanner(new FileInputStream(new File("d_metropolis.in")));
+		//Scanner scanner = new Scanner(new FileInputStream(new File("e_high_bonus.in")));
 		int rows = scanner.nextInt();
 		int columns = scanner.nextInt();
 		int nCars = scanner.nextInt();
@@ -23,7 +31,7 @@ public class Main {
 			int y = scanner.nextInt();
 			int earliestStart = scanner.nextInt();
 			int latestFinish = scanner.nextInt();
-			Ride ride = new Ride(new Point(a, b), new Point(x, y), earliestStart, latestFinish);
+			Ride ride = new Ride(i, new Point(a, b), new Point(x, y), earliestStart, latestFinish);
 			rides.add(ride);
 		}
 
@@ -31,7 +39,112 @@ public class Main {
 			cars.add(new Car(new Point(0, 0)));
 		}
 
+		for (int i = 0; i < steps; i++) {
+			int currentStep = i;
+			for (Car car : cars) {
+				if (car.isAvailable()) {
+					PriorityQueue<Ride> priorityQueue = new PriorityQueue<>((ride1, ride2) -> {
+						int ride1Length = distance(ride1.start, ride1.end);
+						int ride2Length = distance(ride2.start, ride2.end);
 
+						int ride1StartTime = distance(car.currentPosition, ride1.start);
+						int bonus1 = (currentStep + ride1StartTime < ride1.earliestStart) ? bonus : 0;
+						int ride2StartTime = distance(car.currentPosition, ride2.start);
+						int bonus2 = (currentStep + ride2StartTime < ride2.earliestStart) ? bonus : 0;
+
+						return (ride2Length + bonus2) - (ride1Length + bonus1);
+					});
+					for (Ride ride : rides) {
+						int time = i +
+								distance(car.currentPosition, ride.start) +
+								distance(ride.start, ride.end);
+						if (time < ride.latestFinish) {
+							priorityQueue.add(ride);
+						}
+					}
+					Ride ride = priorityQueue.poll();
+					if (ride != null) {
+						rides.remove(ride);
+						car.currentRide = ride;
+						car.state = CarState.GOING_TO_START;
+					}
+				}
+			}
+
+			for (Car car : cars) {
+				switch (car.state) {
+					case GOING_TO_START:
+						if (car.currentPosition.equals(car.currentRide.start)) {
+							if (i >= car.currentRide.earliestStart) {
+								car.currentPosition = makeStep(car.currentPosition, car.currentRide.end);
+								car.state = CarState.GOING_TO_FINISH;
+							} else {
+								// wait
+							}
+						} else {
+							car.currentPosition = makeStep(car.currentPosition, car.currentRide.start);
+						}
+						break;
+					case GOING_TO_FINISH:
+						if (car.currentPosition.equals(car.currentRide.end)) {
+							Ride ride = car.currentRide;
+							car.history.add(ride.index);
+							car.currentRide = null;
+							car.state = CarState.AVAILABLE;
+						} else {
+							car.currentPosition = makeStep(car.currentPosition, car.currentRide.end);
+						}
+						break;
+					case AVAILABLE:
+						// Do nothing
+						break;
+				}
+			}
+		}
+
+		File output = new File("output.txt");
+		StringBuilder stringBuilder = new StringBuilder();
+		for (Car car : cars) {
+			stringBuilder
+					.append(car.history.size())
+					.append(" ")
+					.append(join(" ", car.history))
+					.append("\n");
+			System.out.println(stringBuilder.toString());
+			FileUtils.write(output, stringBuilder.toString(), Charset.defaultCharset());
+		}
+	}
+
+	static int distance(Point a, Point b) {
+		return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+	}
+
+	static Point makeStep(Point start, Point end) {
+		Point point = new Point(start.x, start.y);
+		if (start.x > end.x) {
+			point.x--;
+		} else if (start.x < end.x) {
+			point.x++;
+		} else if (start.y > end.y) {
+			point.y--;
+		} else if (start.y < end.y) {
+			point.y++;
+		}
+		return point;
+	}
+
+	public static String join(CharSequence delimiter, Iterable tokens) {
+		StringBuilder sb = new StringBuilder();
+		boolean firstTime = true;
+		for (Object token : tokens) {
+			if (firstTime) {
+				firstTime = false;
+			} else {
+				sb.append(delimiter);
+			}
+			sb.append(token);
+		}
+		return sb.toString();
 	}
 }
 
@@ -39,28 +152,31 @@ public class Main {
 class Car {
 	Point currentPosition;
 	Ride currentRide;
-	List<Integer> ridesDone = new ArrayList<>();
+	List<Integer> history = new ArrayList<>();
+	CarState state = CarState.AVAILABLE;
 
 	public Car(Point currentPosition) {
 		this.currentPosition = currentPosition;
 	}
 
 	boolean isAvailable() {
-		return currentRide == null;
+		return state == CarState.AVAILABLE;
 	}
 
 	void addRide(int index) {
-		ridesDone.add(index);
+		history.add(index);
 	}
 }
 
 class Ride {
+	int index;
 	final Point start;
 	final Point end;
 	final int earliestStart;
 	final int latestFinish;
 
-	Ride(Point start, Point end, int earliestStart, int latestFinish) {
+	Ride(int index, Point start, Point end, int earliestStart, int latestFinish) {
+		this.index = index;
 		this.start = start;
 		this.end = end;
 		this.earliestStart = earliestStart;
@@ -69,11 +185,32 @@ class Ride {
 }
 
 class Point {
-	final int x;
-	final int y;
+	int x;
+	int y;
 
 	Point(int x, int y) {
 		this.x = x;
 		this.y = y;
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Point point = (Point) o;
+		return x == point.x &&
+				y == point.y;
+	}
+
+	@Override
+	public int hashCode() {
+
+		return Objects.hash(x, y);
+	}
+}
+
+enum CarState {
+	AVAILABLE,
+	GOING_TO_START,
+	GOING_TO_FINISH
 }
