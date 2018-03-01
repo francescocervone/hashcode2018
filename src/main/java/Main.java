@@ -38,9 +38,19 @@ public class Main {
 
 class Car {
 	Point currentPosition;
+	Ride currentRide;
+	List<Integer> ridesDone = new ArrayList<>();
 
 	public Car(Point currentPosition) {
 		this.currentPosition = currentPosition;
+	}
+
+	boolean isAvailable() {
+		return currentRide == null;
+	}
+
+	void addRide(int index) {
+		ridesDone.add(index);
 	}
 }
 
